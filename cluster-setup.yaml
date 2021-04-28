@@ -1,0 +1,57 @@
+- hosts: Cluster
+  gather_facts: no
+  vars_files:
+    - var/cluster_info.yaml
+
+  tasks:
+    - name: Installing docker
+      package:
+        name: docker
+        state: present
+
+    - name: Installing vim
+      package:
+        name: vim
+        state: present
+
+    - name: Installing wget
+      package:
+        name: wget
+        state: present
+
+    - name: Copying daemon.json file
+      copy:
+        src: "{{ playbook_dir }}/daemon.json"
+        dest: /etc/docker/daemon.json
+      register: daemon_file
+
+    - name: Restart docker service, in all cases, also issue daemon-reload to pick up config changes
+      systemd:
+        name: docker
+        daemon_reload: yes
+        state: restarted
+      when: daemon_file.changed == true
+          
+    - name: Downloading the OpenShift 3.11 CLI
+      get_url:
+        url: https://github.com/openshift/origin/releases/download/v3.11.0/openshift-origin-client-tools-v3.11.0-0cbc58b-linux-64bit.tar.gz
+        dest: /root/OpenShift.tar.gz
+
+    - name: Extract OpenShift.tar.gz into /root/OpenShift
+      unarchive:
+        src: /root/OpenShift.tar.gz
+        dest: /root
+        remote_src: yes
+
+    - name: Copy the OpenShift and Kubernetes CLI
+      copy: 
+        src: /root/openshift-origin-client-tools-v3.11.0-0cbc58b-linux-64bit/{{ item }}
+        dest: /usr/local/bin 
+        mode: '0777'
+        remote_src: yes
+      loop:
+        - oc
+        - kubectl
+    
+    - name: Execute the OpenShift Cluster
+      command:  /usr/local/bin/oc cluster up --routing-suffix {{ public_ipv4  }}.nip.ip --public-hostname {{ public_hostname }}
