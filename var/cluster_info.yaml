@@ -1,2 +1,2 @@
-public_ipv4: 
-public_hostname: 
+public_ipv4: <ec2_instance_public_ipv4>
+public_hostname: <ec2_instance_public_hostname>
